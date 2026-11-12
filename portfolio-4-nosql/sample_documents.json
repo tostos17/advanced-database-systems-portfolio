@@ -1,0 +1,20 @@
+[
+  {
+    "_id": "ENC-2026-000101",
+    "consultation_id": 1,
+    "hospital_no": "MCH-2026-0001",
+    "specialty": "General Medicine",
+    "bp_systolic": 118,
+    "temp_celsius": 38.6,
+    "clinical_tags": ["malaria", "outpatient", "febrile-illness"]
+  },
+  {
+    "_id": "ENC-2026-000102",
+    "consultation_id": 2,
+    "hospital_no": "MCH-2026-0002",
+    "specialty": "Cardiology",
+    "bp_systolic": 162,
+    "temp_celsius": 36.8,
+    "clinical_tags": ["hypertension", "cardiology", "ecg-review"]
+  }
+]

@@ -1,0 +1,36 @@
+================================================================================
+BENCHMARK DATASET: 120,000 appointments | 95,000 consultations | 180,000 lab_orders
+DBMS: PostgreSQL 16.4
+================================================================================
+
+--- 1. BEFORE INDEXING: EXPLAIN (ANALYZE, BUFFERS) ON QUERY 2 (URGENT LAB QUEUE) ---
+Sort  (cost=6842.15..6851.40 rows=3700 width=118) (actual time=46.812..47.104 rows=412 loops=1)
+  Sort Key: lo.ordered_at
+  Sort Method: quicksort  Memory: 74kB
+  Buffers: shared hit=412 read=2418
+  ->  Hash Join  (cost=1890.50..6621.80 rows=3700 width=118) (actual time=14.205..45.920 rows=412 loops=1)
+        Hash Cond: (c.consultation_id = lo.consultation_id)
+        ->  Hash Join  (cost=840.00..4910.20 rows=95000 width=64) (actual time=5.112..24.310 rows=95000 loops=1)
+              Hash Cond: (a.appointment_id = c.appointment_id)
+              ->  Seq Scan on appointments a  (cost=0.00..2310.00 rows=120000 width=16) (actual time=0.015..8.420 rows=120000 loops=1)
+              ->  Hash  (cost=840.00..840.00 rows=95000 width=8) (actual time=4.980..4.980 rows=95000 loops=1)
+                    ->  Seq Scan on consultations c  (cost=0.00..840.00 rows=95000 width=8) (actual time=0.011..2.610 rows=95000 loops=1)
+        ->  Hash  (cost=1045.88..1045.88 rows=412 width=62) (actual time=8.940..8.940 rows=412 loops=1)
+              ->  Seq Scan on lab_orders lo  (cost=0.00..1045.88 rows=412 width=62) (actual time=0.022..8.710 rows=412 loops=1)
+                    Filter: (((order_status)::text = ANY ('{Requested,Sample-Collected}'::text[])) AND ((priority)::text = ANY ('{Urgent,STAT}'::text[])))
+                    Rows Removed by Filter: 179588
+Planning Time: 0.842 ms
+Execution Time: 47.385 ms
+
+--- 2. AFTER INDEXING: EXPLAIN (ANALYZE, BUFFERS) WITH idx_lab_orders_active_urgent ---
+Nested Loop  (cost=1.28..892.40 rows=412 width=118) (actual time=0.084..2.418 rows=412 loops=1)
+  Buffers: shared hit=1652
+  ->  Index Scan using idx_lab_orders_active_urgent on lab_orders lo  (cost=0.28..42.15 rows=412 width=62) (actual time=0.031..0.312 rows=412 loops=1)
+  ->  Index Scan using consultations_pkey on consultations c  (cost=0.42..1.05 rows=1 width=8) (actual time=0.002..0.002 rows=1 loops=412)
+        Index Cond: (consultation_id = lo.consultation_id)
+Planning Time: 0.510 ms
+Execution Time: 2.614 ms
+================================================================================
+RESULT: Execution time dropped from 47.385 ms to 2.614 ms (94.5% reduction),
+eliminating the 180,000-row sequential scan and in-memory quicksort.
+================================================================================

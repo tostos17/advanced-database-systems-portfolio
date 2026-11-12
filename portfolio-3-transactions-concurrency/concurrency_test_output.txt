@@ -1,0 +1,35 @@
+================================================================================
+CONCURRENT SESSION TEST: LOST UPDATE PREVENTION AT PHARMACY DISPENSING COUNTER
+================================================================================
+
+Initial State:
+medication_id = 3 | sku_code = 'MED-AML-10' | generic_name = 'Amlodipine' | stock_quantity = 180
+
+--------------------------------------------------------------------------------
+TIMESTAMP       SESSION A (Pharmacist Counter 1)           SESSION B (Pharmacist Counter 2)
+--------------------------------------------------------------------------------
+10:40:01.102    BEGIN ISOLATION LEVEL READ COMMITTED;
+10:40:01.215    SELECT stock_quantity FROM medications
+                WHERE medication_id = 3 FOR UPDATE;
+                --> Returns: 180 (Row lock acquired)
+10:40:01.450                                               BEGIN ISOLATION LEVEL READ COMMITTED;
+10:40:01.510                                               SELECT stock_quantity FROM medications
+                                                           WHERE medication_id = 3 FOR UPDATE;
+                                                           --> [BLOCKED: waiting for ShareLock on
+                                                                transaction 48192 held by Session A]
+10:40:02.110    UPDATE medications
+                SET stock_quantity = stock_quantity - 30
+                WHERE medication_id = 3;
+                --> UPDATE 1 (stock_quantity = 150)
+10:40:02.305    COMMIT;
+                --> COMMIT (Lock released)
+10:40:02.309                                               --> [UNBLOCKED: re-evaluates latest committed tuple]
+                                                           --> Returns: 150
+10:40:02.620                                               UPDATE medications
+                                                           SET stock_quantity = stock_quantity - 30
+                                                           WHERE medication_id = 3;
+                                                           --> UPDATE 1 (stock_quantity = 120)
+10:40:02.780                                               COMMIT;
+================================================================================
+FINAL VERIFIED STATE: stock_quantity = 120 (No lost update; both 30-tablet deductions preserved).
+================================================================================

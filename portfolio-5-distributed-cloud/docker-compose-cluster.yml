@@ -1,0 +1,28 @@
+version: "3.9"
+services:
+  pg-primary-lagos:
+    image: postgres:16-alpine
+    container_name: medcore_pg_primary_lagos
+    environment:
+      POSTGRES_DB: medcore_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: medcore_secure_password
+    ports:
+      - "5432:5432"
+    command: >
+      postgres
+      -c wal_level=replica
+      -c max_wal_senders=5
+      -c synchronous_commit=on
+      -c synchronous_standby_names='abuja_dr_replica'
+
+  pg-replica-abuja:
+    image: postgres:16-alpine
+    container_name: medcore_pg_replica_abuja
+    depends_on:
+      - pg-primary-lagos
+    ports:
+      - "5433:5432"
+    environment:
+      PGUSER: postgres
+      PGPASSWORD: medcore_secure_password
